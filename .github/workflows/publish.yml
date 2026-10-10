@@ -41,11 +41,14 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           stable: true
       - name: Check reviewed PR and completed tests
+        id: reviewed
         run: |
           [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]
           [[ "$PR_HEAD" =~ ^[a-f0-9]{40}$ ]]
           test "$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')" = "$PR_HEAD"
-          test "$(gh pr view "$PR_NUMBER" --json state --jq '.state')" = OPEN
+          state="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
+          case "$state" in OPEN|CLOSED|MERGED) ;; *) exit 1 ;; esac
+          echo "state=$state" >> "$GITHUB_OUTPUT"
           test "$(gh pr view "$PR_NUMBER" --json isCrossRepository --jq '.isCrossRepository')" = false
           gh pr checks "$PR_NUMBER"
       - name: Set up bot identity
@@ -53,10 +56,31 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
       - name: Publish tested bottles
+        if: steps.reviewed.outputs.state == 'OPEN'
         env:
           HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: brew pr-pull --tap="$GITHUB_REPOSITORY" "$PR_NUMBER"
-      - name: Push formula and close PR
+      - name: Push published formula
+        if: steps.reviewed.outputs.state == 'OPEN'
         run: |
           git push origin HEAD:main
-          gh pr close "$PR_NUMBER" --delete-branch
+      - name: Verify reviewed formula and public bottles
+        run: |
+          git fetch origin "$PR_HEAD"
+          git show "$PR_HEAD:Formula/codex-switch.rb" > "$RUNNER_TEMP/reviewed-formula.rb"
+          brew info --json=v2 yantaolu/tap/codex-switch > "$RUNNER_TEMP/bottle-info.json"
+          python3 scripts/verify-bottles.py \
+            --reviewed "$RUNNER_TEMP/reviewed-formula.rb" \
+            --info "$RUNNER_TEMP/bottle-info.json"
+      - name: Clean up published PR branch
+        run: |
+          state="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
+          if test "$state" = OPEN; then
+            gh pr close "$PR_NUMBER"
+          fi
+          branch="$(gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName')"
+          test "$branch" != main
+          ref="$(git ls-remote --heads origin "refs/heads/$branch")"
+          if test -n "$ref"; then
+            git push origin ":refs/heads/$branch"
+          fi
