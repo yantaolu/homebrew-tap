@@ -11,7 +11,7 @@ brew upgrade codex-switch
 
 [codex-switch](https://github.com/yantaolu/codex-switch) 管理多个 ChatGPT 官方账户和 Responses 兼容服务商，提供交互菜单及子命令。需要官方 Codex CLI 完成登录、切换核验、官方额度查询与会话接续。切换后手动打开客户端。
 
-Apple Silicon 与 Intel 的匹配平台使用预编译 bottle；不匹配时回退源码构建并安装 Go 构建依赖。运行程序本身不需要 Go。
+Apple Silicon 与 Intel 的匹配平台使用预编译 bottle；其他 macOS 平台直接安装对应架构的正式版二进制包。安装和运行都不需要 Go。
 
 ## 卸载
 
@@ -24,7 +24,7 @@ brew uninstall codex-switch
 ## 配方维护
 
 1. 等待主项目的稳定 Release 发布，核对源码包与校验和。
-2. 通过 PR 更新 `Formula/codex-switch.rb`；CI 在 Apple Silicon 和 Intel 上构建、测试 bottles。
+2. 通过 PR 更新 `Formula/codex-switch.rb` 中的版本、双架构 URL 与 SHA-256；CI 在 Apple Silicon 和 Intel 上安装正式版二进制包、生成并测试 bottles。
 3. 所有检查通过后，运行 `brew pr-pull` 工作流，填写 PR 编号及已审核的 head SHA。
 4. 工作流发布 bottles，提交对应校验和并关闭 PR。验证实际下载、安装和版本后完成更新。
 

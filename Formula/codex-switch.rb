@@ -1,26 +1,24 @@
 class CodexSwitch < Formula
   desc "Switch local Codex accounts and Responses-compatible providers"
   homepage "https://github.com/yantaolu/codex-switch"
-  url "https://github.com/yantaolu/codex-switch/releases/download/v1.0.0/codex-switch_1.0.0_source.tar.gz"
-  sha256 "20614149d5886bdfdc471d294d903cb45696689e76518701617820f3e8f4e4ef"
   license "MIT"
 
-  depends_on "go" => :build
+  on_arm do
+    url "https://github.com/yantaolu/codex-switch/releases/download/v1.0.0/codex-switch_1.0.0_darwin_arm64.tar.gz"
+    sha256 "cc850f5c9b6916ccf906422f6a320b7fce72eb4366675191f497d0a76b2ddff4"
+  end
+
+  on_intel do
+    url "https://github.com/yantaolu/codex-switch/releases/download/v1.0.0/codex-switch_1.0.0_darwin_amd64.tar.gz"
+    sha256 "2b4e4fc3fa1b30a23b1ba3ea71fd95b0d608bbb5320b7c0a8a3cc2b89d80fa9d"
+  end
+
   depends_on :macos
 
   def install
-    ENV["CGO_ENABLED"] = "0"
-    ENV["GOPROXY"] = "off"
-    ENV["GOSUMDB"] = "off"
-    system "go", "build", "-mod=vendor", *std_go_args(output: bin/"codex-switch", ldflags: "-s -w -X main.version=#{version}"), "./cmd/codex-switch"
+    bin.install "codex-switch"
     doc.install "README.md", "CHANGELOG.md", "LICENSE", "docs"
-    pkgshare.install "go.mod", "go.sum"
-    license_dir = pkgshare/"licenses"
-    buildpath.glob("vendor/**/{LICENSE*,LICENCE*,COPYING*}").select(&:file?).each do |path|
-      (license_dir/path.relative_path_from(buildpath/"vendor").dirname).install path
-    end
-    goroot = Utils.safe_popen_read("go", "env", "GOROOT").strip
-    license_dir.install Pathname.new(goroot)/"LICENSE" => "Go-LICENSE"
+    pkgshare.install "modules.json", "licenses"
   end
 
   def caveats
