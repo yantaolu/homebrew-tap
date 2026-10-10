@@ -127,11 +127,15 @@ def guard(number, head, run_id=None, request=api):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--select', type=Path)
+    parser.add_argument('--verify-recipe', type=Path)
     parser.add_argument('--pr')
     parser.add_argument('--head')
     parser.add_argument('--run-id', type=int)
     args = parser.parse_args()
-    if args.select:
+    if args.verify_recipe:
+        recipe = args.verify_recipe.read_text()
+        print('Verified public release: ' + validate_recipe(recipe, recipe))
+    elif args.select:
         result = select(json.loads(args.select.read_text()))
         if result:
             with open(os.environ['GITHUB_OUTPUT'], 'a') as output:

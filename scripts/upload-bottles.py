@@ -47,11 +47,13 @@ def publish(directory, check_only=False):
     if set(tags) != {'arm64_sequoia', 'sequoia'}:
         raise ValueError('Both supported macOS architecture bottles are required')
     files = []
-    for item in tags.values():
+    for platform, item in tags.items():
         filename = item['filename']
         local_name = item['local_filename']
         if Path(filename).name != filename or Path(local_name).name != local_name:
             raise ValueError('Unsafe bottle filename')
+        if filename != f'codex-switch-{version}.{platform}.bottle.tar.gz':
+            raise ValueError('Bottle filename does not match version and architecture')
         path = directory / local_name
         if hashlib.sha256(path.read_bytes()).hexdigest() != item['sha256']:
             raise ValueError('Local bottle checksum mismatch')
