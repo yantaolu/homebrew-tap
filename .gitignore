@@ -1,0 +1,4 @@
+.DS_Store
+*.bottle.*
+brew-test-bot*.xml
+brew-test-bot*.log

@@ -1,0 +1,62 @@
+name: brew pr-pull
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_request:
+        description: 'Tested formula PR number'
+        required: true
+        type: number
+      head_sha:
+        description: 'Reviewed PR head commit (full SHA)'
+        required: true
+        type: string
+
+concurrency:
+  group: publish-bottles
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      checks: read
+      contents: write
+      issues: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ inputs.pull_request }}
+      PR_HEAD: ${{ inputs.head_sha }}
+    steps:
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@fccef3b26268fc4a788fd7ad7c189f3a105cbf13
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          stable: true
+      - name: Check reviewed PR and completed tests
+        run: |
+          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]
+          [[ "$PR_HEAD" =~ ^[a-f0-9]{40}$ ]]
+          test "$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')" = "$PR_HEAD"
+          test "$(gh pr view "$PR_NUMBER" --json state --jq '.state')" = OPEN
+          test "$(gh pr view "$PR_NUMBER" --json isCrossRepository --jq '.isCrossRepository')" = false
+          gh pr checks "$PR_NUMBER"
+      - name: Set up bot identity
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Publish tested bottles
+        env:
+          HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: brew pr-pull --tap="$GITHUB_REPOSITORY" "$PR_NUMBER"
+      - name: Push formula and close PR
+        run: |
+          git push origin HEAD:main
+          gh pr close "$PR_NUMBER" --delete-branch
