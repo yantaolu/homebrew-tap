@@ -1,6 +1,9 @@
 name: brew pr-pull
 
 on:
+  workflow_run:
+    workflows: ['brew test-bot']
+    types: [completed]
   workflow_dispatch:
     inputs:
       pull_request:
@@ -18,9 +21,39 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
+  select:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request')
+    runs-on: ubuntu-latest
+    outputs:
+      pr: ${{ steps.manual.outputs.pr || steps.auto.outputs.pr }}
+      head: ${{ steps.manual.outputs.head || steps.auto.outputs.head }}
+      run_id: ${{ steps.auto.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Select successful managed release PR
+        id: auto
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/publication-guard.py --select "$GITHUB_EVENT_PATH"
+      - name: Select manually reviewed PR
+        id: manual
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          PR: ${{ inputs.pull_request }}
+          HEAD: ${{ inputs.head_sha }}
+        run: |
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          echo "head=$HEAD" >> "$GITHUB_OUTPUT"
   publish:
+    needs: select
+    if: needs.select.outputs.pr != ''
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -32,8 +65,9 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
-      PR_NUMBER: ${{ inputs.pull_request }}
-      PR_HEAD: ${{ inputs.head_sha }}
+      PR_NUMBER: ${{ needs.select.outputs.pr }}
+      PR_HEAD: ${{ needs.select.outputs.head }}
+      TEST_RUN: ${{ needs.select.outputs.run_id }}
     steps:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@fccef3b26268fc4a788fd7ad7c189f3a105cbf13
@@ -43,27 +77,28 @@ jobs:
       - name: Check reviewed PR and completed tests
         id: reviewed
         run: |
-          [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]
-          [[ "$PR_HEAD" =~ ^[a-f0-9]{40}$ ]]
-          test "$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')" = "$PR_HEAD"
-          state="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"
-          case "$state" in OPEN|CLOSED|MERGED) ;; *) exit 1 ;; esac
-          echo "state=$state" >> "$GITHUB_OUTPUT"
-          test "$(gh pr view "$PR_NUMBER" --json isCrossRepository --jq '.isCrossRepository')" = false
-          gh pr checks "$PR_NUMBER"
+          args=(--pr "$PR_NUMBER" --head "$PR_HEAD")
+          if test -n "$TEST_RUN"; then args+=(--run-id "$TEST_RUN"); fi
+          python3 scripts/publication-guard.py "${args[@]}"
       - name: Set up bot identity
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
       - name: Publish tested bottles
+        id: bottles
         if: steps.reviewed.outputs.state == 'OPEN'
         env:
           HOMEBREW_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: brew pr-pull --tap="$GITHUB_REPOSITORY" "$PR_NUMBER"
-      - name: Push published formula
+        run: brew pr-pull --tap="$GITHUB_REPOSITORY" --no-upload --retain-bottle-dir "$PR_NUMBER"
+      - name: Merge and publish immutable bottles
         if: steps.reviewed.outputs.state == 'OPEN'
+        env:
+          BOTTLE_DIRECTORY: ${{ steps.bottles.outputs.bottle_path }}
         run: |
-          git push origin HEAD:main
+          test -d "$BOTTLE_DIRECTORY"
+          (cd "$BOTTLE_DIRECTORY" && brew bottle --merge --write ./*.bottle.json)
+          brew audit --skip-style yantaolu/tap/codex-switch
+          python3 scripts/upload-bottles.py "$BOTTLE_DIRECTORY"
       - name: Verify reviewed formula and public bottles
         run: |
           git fetch origin "$PR_HEAD"
@@ -72,6 +107,11 @@ jobs:
           python3 scripts/verify-bottles.py \
             --reviewed "$RUNNER_TEMP/reviewed-formula.rb" \
             --info "$RUNNER_TEMP/bottle-info.json"
+      - name: Push verified formula
+        if: steps.reviewed.outputs.state == 'OPEN'
+        run: |
+          test "$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid')" = "$PR_HEAD"
+          git push origin HEAD:main
       - name: Clean up published PR branch
         run: |
           state="$(gh pr view "$PR_NUMBER" --json state --jq '.state')"

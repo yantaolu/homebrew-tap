@@ -23,9 +23,13 @@ brew uninstall codex-switch
 
 ## 配方维护
 
-1. 等待主项目的稳定 Release 发布，核对源码包与校验和。
-2. 通过 PR 更新 `Formula/codex-switch.rb` 中的版本、双架构 URL 与 SHA-256；CI 在 Apple Silicon 和 Intel 上安装正式版二进制包、生成并测试 bottles。
-3. 所有检查通过后，运行 `brew pr-pull` 工作流，填写 PR 编号及已审核的 head SHA。
-4. 工作流发布 bottles，提交对应校验和并关闭 PR。验证实际下载、安装和版本后完成更新。
+1. 主项目公开稳定 Release 后，已配置的 GitHub App 自动创建版本更新 PR。
+2. CI 在 Apple Silicon 和 Intel 上安装正式版二进制包、生成并测试 bottles。
+3. 双架构验收成功后，发布工作流自动核对 PR head、正式 Release 与测试附件，合并配方并上传 bottles。
+4. 公开 bottles 的校验和通过后才更新主分支，关闭 PR 并清理分支。用户执行 `brew upgrade codex-switch` 即可升级。
 
-CI 采用 Homebrew 官方 `setup-homebrew`、`test-bot` 和 `pr-pull` 流程。配方与 bottle 附件均由此仓库维护，不包含任何用户账户数据。
+App 仅授权本 Tap 的 Contents 与 Pull requests 写入权限，配置步骤见[发布指南](https://github.com/yantaolu/codex-switch/blob/main/docs/releasing.md)。预发布、旧版本、测试失败、过期附件和被修改的 PR 不会自动发布。重复事件不会替换已有附件；上传中断后重试只补缺失文件。
+
+主项目 **Sync Homebrew Tap** 可输入正式 tag 手动重试同步；本仓库 **brew pr-pull** 保留手动恢复入口，填写已通过验收的 PR 编号和完整 head SHA。两种入口使用相同校验。
+
+CI 采用 Homebrew 官方 `setup-homebrew`、`test-bot`、`pr-pull` 和 bottle 合并流程。配方与 bottle 附件均由此仓库维护，不包含任何用户账户数据。
