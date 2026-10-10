@@ -18,12 +18,25 @@ def gh(*args):
 
 def publish(directory, check_only=False):
     metadata = list(directory.glob('*.bottle.json'))
-    if len(metadata) != 1:
-        raise ValueError('Expected one merged bottle metadata file')
-    recipes = json.loads(metadata[0].read_text())
-    if len(recipes) != 1 or next(iter(recipes)) not in {'codex-switch', 'yantaolu/tap/codex-switch'}:
-        raise ValueError('Only codex-switch bottles may be published')
-    recipe = next(iter(recipes.values()))
+    if not 1 <= len(metadata) <= 2:
+        raise ValueError('Expected metadata for the two native bottle architectures')
+    recipe = None
+    tags = {}
+    for path in metadata:
+        recipes = json.loads(path.read_text())
+        if len(recipes) != 1 or next(iter(recipes)) not in {'codex-switch', 'yantaolu/tap/codex-switch'}:
+            raise ValueError('Only codex-switch bottles may be published')
+        item = next(iter(recipes.values()))
+        if recipe is not None and (item['formula']['pkg_version'] != recipe['formula']['pkg_version'] or
+                                   item['bottle']['root_url'] != recipe['bottle']['root_url']):
+            raise ValueError('Bottle architectures must belong to the same release')
+        if item['bottle'].get('rebuild', 0) != 0:
+            raise ValueError('Unexpected bottle rebuild')
+        for tag, value in item['bottle']['tags'].items():
+            if tag in tags:
+                raise ValueError('Duplicate architecture metadata')
+            tags[tag] = value
+        recipe = item
     bottle = recipe['bottle']
     prefix = f'https://github.com/{REPO}/releases/download/codex-switch-'
     version = recipe['formula']['pkg_version']
@@ -31,7 +44,6 @@ def publish(directory, check_only=False):
         raise ValueError('Unexpected bottle version')
     if bottle['root_url'] != prefix + version:
         raise ValueError('Unexpected bottle release URL')
-    tags = bottle['tags']
     if set(tags) != {'arm64_sequoia', 'sequoia'}:
         raise ValueError('Both supported macOS architecture bottles are required')
     files = []

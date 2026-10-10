@@ -152,6 +152,28 @@ class UploadTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'Local bottle checksum'):
                     upload.publish(directory)
 
+    def test_accepts_separate_native_metadata_from_homebrew_merge(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            self.fixture(directory)
+            merged = directory / 'merged.bottle.json'
+            original = json.loads(merged.read_text())
+            merged.unlink()
+            for tag in ('arm64_sequoia', 'sequoia'):
+                item = copy.deepcopy(original)
+                recipe = item['yantaolu/tap/codex-switch']
+                recipe['bottle']['tags'] = {tag: recipe['bottle']['tags'][tag]}
+                (directory / f'{tag}.bottle.json').write_text(json.dumps(item))
+            calls = []
+            def gh(*args):
+                calls.append(args)
+                if 'matching-refs' in str(args): return json.dumps([{'ref': 'refs/tags/codex-switch-1.0.1'}])
+                if 'releases/tags' in str(args): return json.dumps({'draft': False, 'prerelease': False, 'assets': []})
+                return ''
+            with patch.object(upload, 'gh', gh):
+                upload.publish(directory)
+            self.assertEqual(len([call for call in calls if call[:2] == ('release', 'upload')]), 2)
+
 
 if __name__ == '__main__':
     unittest.main()
