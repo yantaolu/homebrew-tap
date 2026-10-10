@@ -3,11 +3,10 @@ class CodexSwitch < Formula
   homepage "https://github.com/yantaolu/codex-switch"
   url "https://github.com/yantaolu/codex-switch/releases/download/v1.0.0/codex-switch_1.0.0_source.tar.gz"
   sha256 "20614149d5886bdfdc471d294d903cb45696689e76518701617820f3e8f4e4ef"
-  version "1.0.0"
   license "MIT"
 
-  depends_on :macos
   depends_on "go" => :build
+  depends_on :macos
 
   def install
     ENV["CGO_ENABLED"] = "0"
