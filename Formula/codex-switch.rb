@@ -21,6 +21,9 @@ class CodexSwitch < Formula
     sha256 "2b4e4fc3fa1b30a23b1ba3ea71fd95b0d608bbb5320b7c0a8a3cc2b89d80fa9d"
   end
 
+  # Older Homebrew can detect the architecture suffix as the package version.
+  version "1.0.0" if Version.detect(stable.url).to_s != "1.0.0"
+
   def install
     bin.install "codex-switch"
     doc.install "README.md", "CHANGELOG.md", "LICENSE", "docs"
