@@ -3,6 +3,12 @@ class CodexSwitch < Formula
   homepage "https://github.com/yantaolu/codex-switch"
   license "MIT"
 
+  bottle do
+    root_url "https://github.com/yantaolu/homebrew-tap/releases/download/codex-switch-1.0.0"
+    sha256 cellar: :any_skip_relocation, arm64_sequoia: "9ab9cc26132ec38b63fdf136e6ed29884f3ae4306f7ecd5463b6b8ff0ca36081"
+    sha256 cellar: :any_skip_relocation, sequoia:       "d0e91649758a14bc937332b8a19bf7f623481107db03f7977907073b38124377"
+  end
+
   depends_on :macos
 
   if Hardware::CPU.arm?
