@@ -3,17 +3,17 @@ class CodexSwitch < Formula
   homepage "https://github.com/yantaolu/codex-switch"
   license "MIT"
 
-  on_arm do
+  depends_on :macos
+
+  if Hardware::CPU.arm?
     url "https://github.com/yantaolu/codex-switch/releases/download/v1.0.0/codex-switch_1.0.0_darwin_arm64.tar.gz"
     sha256 "cc850f5c9b6916ccf906422f6a320b7fce72eb4366675191f497d0a76b2ddff4"
   end
 
-  on_intel do
+  if Hardware::CPU.intel?
     url "https://github.com/yantaolu/codex-switch/releases/download/v1.0.0/codex-switch_1.0.0_darwin_amd64.tar.gz"
     sha256 "2b4e4fc3fa1b30a23b1ba3ea71fd95b0d608bbb5320b7c0a8a3cc2b89d80fa9d"
   end
-
-  depends_on :macos
 
   def install
     bin.install "codex-switch"
