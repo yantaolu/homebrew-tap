@@ -3,26 +3,20 @@ class CodexSwitch < Formula
   homepage "https://github.com/yantaolu/codex-switch"
   license "MIT"
 
-  bottle do
-    root_url "https://github.com/yantaolu/homebrew-tap/releases/download/codex-switch-1.0.0"
-    sha256 cellar: :any_skip_relocation, arm64_sequoia: "9ab9cc26132ec38b63fdf136e6ed29884f3ae4306f7ecd5463b6b8ff0ca36081"
-    sha256 cellar: :any_skip_relocation, sequoia:       "d0e91649758a14bc937332b8a19bf7f623481107db03f7977907073b38124377"
-  end
-
   depends_on :macos
 
   if Hardware::CPU.arm?
-    url "https://github.com/yantaolu/codex-switch/releases/download/v1.0.0/codex-switch_1.0.0_darwin_arm64.tar.gz"
-    sha256 "cc850f5c9b6916ccf906422f6a320b7fce72eb4366675191f497d0a76b2ddff4"
+    url "https://github.com/yantaolu/codex-switch/releases/download/v1.0.1/codex-switch_1.0.1_darwin_arm64.tar.gz"
+    sha256 "59618ca9f93b9f2a1757dbb9ba9960867626e0692fdd94b91da81432e76dbc62"
   end
 
   if Hardware::CPU.intel?
-    url "https://github.com/yantaolu/codex-switch/releases/download/v1.0.0/codex-switch_1.0.0_darwin_amd64.tar.gz"
-    sha256 "2b4e4fc3fa1b30a23b1ba3ea71fd95b0d608bbb5320b7c0a8a3cc2b89d80fa9d"
+    url "https://github.com/yantaolu/codex-switch/releases/download/v1.0.1/codex-switch_1.0.1_darwin_amd64.tar.gz"
+    sha256 "11cfe7690d2d47cb1c9c57b78a14e93319f5969ba706ca25f571765f322de1a0"
   end
 
   # Older Homebrew can detect the architecture suffix as the package version.
-  version "1.0.0" if Version.detect(stable.url).to_s != "1.0.0"
+  version "1.0.1" if Version.detect(stable.url).to_s != "1.0.1"
 
   def install
     bin.install "codex-switch"
